@@ -100,13 +100,13 @@ const NewsDashboard = ({ onDataUpdate }) => {
   };
 
   return (
-    <div className="news-section">
-      <div className="card" style={{ gridColumn: 'span 2' }}>
+    <div className="mt-8">
+      <div className="card">
         {/* Header Section */}
-        <div className="flex justify-between items-center mb-5">
-          <h2 className="text-lg font-bold text-slate-800 dark:text-white">Breaking News</h2>
+        <div className="ncr-top mb-6">
+          <h2 className="text-xl font-bold tracking-tight" style={{ fontFamily: 'var(--font-display)' }}>Breaking News</h2>
           <button 
-            className="px-3 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-[10px] font-bold shadow-sm hover:bg-slate-50 transition-all"
+            className="btn-pill"
             onClick={() => fetchNews(true)}
           >
             Refresh
@@ -116,17 +116,18 @@ const NewsDashboard = ({ onDataUpdate }) => {
         {/* Search and Sort Controls */}
         <div className="flex gap-3 mb-6">
           <div className="flex-1 relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
             <input 
               type="text" 
               placeholder="Search title, source, author..." 
-              className="w-full pl-10 pr-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-full outline-none text-xs focus:ring-1 focus:ring-pink-500/30 transition-all"
+              className="w-full px-4 py-2.5 bg-white/20 border border-current/10 rounded-xl outline-none text-xs focus:ring-2 focus:ring-orange-500/10 transition-all shadow-sm"
+              style={{ backgroundColor: 'var(--panel-elev)', borderColor: 'var(--border)' }}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
           <select 
-            className="px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-full outline-none text-xs cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 min-w-[120px]"
+            className="px-4 py-2.5 rounded-xl outline-none text-xs cursor-pointer shadow-sm font-bold"
+            style={{ backgroundColor: 'var(--panel-elev)', borderColor: 'var(--border)', border: '1px solid var(--border)' }}
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value)}
           >
@@ -137,55 +138,58 @@ const NewsDashboard = ({ onDataUpdate }) => {
 
         {/* News Feed */}
         {loading ? (
-          <div className="space-y-3">
-            {[1, 2, 3].map(i => <div key={i} className="h-20 bg-slate-100 dark:bg-slate-800 animate-pulse rounded-xl" />)}
+          <div className="space-y-2">
+            {[1, 2, 3, 4, 5].map(i => <div key={i} className="h-14 bg-white/10 animate-pulse rounded-xl" />)}
           </div>
         ) : (
-          <div className="space-y-3 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
+          <div className="space-y-1.5 max-h-[600px] overflow-y-auto pr-1 custom-scrollbar">
             {getProcessedArticles().map((article, idx) => (
               <a 
                 key={idx} 
                 href={article.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="relative flex items-center gap-4 p-3 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl hover:border-pink-500/30 transition-all group block shadow-sm"
+                className="relative flex items-center gap-3 p-1 rounded-xl transition-all group block mb-1"
+                style={{ backgroundColor: 'var(--panel-elev)', border: '1px solid var(--border)' }}
               >
-                {/* ID Badge - Red Circle */}
-                <div className="absolute -top-1 -left-1 w-5 h-5 rounded-full bg-pink-500 text-white text-[9px] font-bold flex items-center justify-center z-10 shadow-md">
+                {/* ID Badge */}
+                <div className="absolute top-1/2 -translate-y-1/2 -left-2 w-5 h-5 rounded-full text-white text-[9px] font-black flex items-center justify-center z-10 shadow-md border-2 border-white"
+                  style={{ backgroundColor: 'var(--accent)' }}>
                   {idx + 1}
                 </div>
 
-                {/* Left: Image */}
-                {article.urlToImage && (
-                  <div className="w-20 h-14 shrink-0 overflow-hidden rounded-lg">
+                {/* Image */}
+                <div className="w-14 h-9 shrink-0 overflow-hidden rounded-lg ml-2"
+                  style={{ backgroundColor: 'var(--bg)' }}>
+                  {article.urlToImage ? (
                     <img 
                       src={article.urlToImage} 
                       alt="" 
                       className="w-full h-full object-cover grayscale-[0.2] group-hover:grayscale-0 transition-all"
                       onError={(e) => e.target.style.display = 'none'}
                     />
-                  </div>
-                )}
-
-                {/* Middle: Content */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-0.5">
-                    <span className="text-[9px] font-bold text-blue-600 dark:text-blue-400 uppercase">{article.source.name}</span>
-                    <span className="text-[9px] text-slate-400 dark:text-slate-500">
-                      {article.publishedAt ? new Date(article.publishedAt).toLocaleString() : ''}
-                    </span>
-                  </div>
-                  <h3 className="font-bold text-sm leading-tight text-slate-800 dark:text-slate-100 truncate group-hover:text-pink-600 transition-colors">
-                    {article.title}
-                  </h3>
-                  <p className="text-[10px] text-slate-500 dark:text-slate-400 line-clamp-1">
-                    {article.description}
-                  </p>
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center opacity-20">
+                      <TrendingUp size={12} />
+                    </div>
+                  )}
                 </div>
 
-                {/* Right: Tiny Red Triangle Action Icon */}
-                <div className="shrink-0 ml-2">
-                   <div className="w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-t-[6px] border-t-pink-500/40 group-hover:border-t-pink-500 transition-all transform rotate-[-90deg]" />
+                {/* Content - Ultra Condensed */}
+                <div className="flex-1 min-w-0 flex items-center gap-2">
+                  <span className="text-[10px] font-black uppercase truncate" style={{ color: 'var(--accent-alt)' }}>
+                    {article.source.name}
+                  </span>
+                  <span className="text-[10px] font-bold opacity-40 whitespace-nowrap">
+                    {article.publishedAt ? new Date(article.publishedAt).toLocaleString() : ''}
+                  </span>
+                </div>
+
+                {/* Action Icon - Peach/Orange Box with Triangle */}
+                <div className="shrink-0 mr-1 w-6 h-6 rounded flex items-center justify-center border"
+                  style={{ backgroundColor: 'var(--accent-soft)', borderColor: 'var(--accent-soft)' }}>
+                  <div className="w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-t-[6px] transition-all"
+                    style={{ borderTopColor: 'var(--accent)' }} />
                 </div>
               </a>
             ))}

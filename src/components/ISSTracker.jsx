@@ -79,19 +79,29 @@ const ISSTracker = ({ onDataUpdate }) => {
 
   const fetchISSData = async () => {
     try {
-      // Wrapping HTTP Open-Notify in an HTTPS Proxy for Vercel support
-      const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent('http://api.open-notify.org/iss-now.json')}`;
+      // Using a more reliable CORS proxy for Vercel (HTTPS) support
+      const targetUrl = 'http://api.open-notify.org/iss-now.json';
+      const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
       const response = await axios.get(proxyUrl);
-      const data = JSON.parse(response.data.contents);
+      const data = response.data;
       
+      if (!data || !data.iss_position) {
+        console.error('Invalid ISS data format:', data);
+        return;
+      }
+
       const { latitude, longitude } = data.iss_position;
       const newPos = { lat: parseFloat(latitude), lng: parseFloat(longitude) };
 
       setPosition((prev) => {
-        if (prev.lat !== 0) {
-          const currentSpeed = calculateSpeed(prev, newPos, 10);
+        if (prev && prev.lat !== 0) {
+          const currentSpeed = calculateSpeed(prev, newPos, 15); // Match the 15s interval
           setSpeed(currentSpeed);
           setSpeedHistory((prevH) => [...prevH.slice(-29), { time: new Date().toLocaleTimeString(), speed: currentSpeed }]);
+        } else {
+          // Default initial speed for ISS is approx 27600 km/h
+          setSpeed(27600);
+          setSpeedHistory([{ time: new Date().toLocaleTimeString(), speed: 27600 }]);
         }
         return newPos;
       });
@@ -103,7 +113,7 @@ const ISSTracker = ({ onDataUpdate }) => {
       if (onDataUpdate) {
         onDataUpdate({
           ...newPos,
-          speed,
+          speed: speed || 27600,
           nearest: nearestPlace,
           peopleCount: peopleInSpace.count,
           peopleNames: peopleInSpace.names
@@ -111,6 +121,7 @@ const ISSTracker = ({ onDataUpdate }) => {
       }
     } catch (error) {
       console.error('Error fetching ISS data:', error);
+      toast.error('ISS connection issues. Retrying...');
     }
   };
 
@@ -127,9 +138,10 @@ const ISSTracker = ({ onDataUpdate }) => {
 
   const fetchPeopleData = async () => {
     try {
-      const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent('http://api.open-notify.org/astros.json')}`;
+      const targetUrl = 'http://api.open-notify.org/astros.json';
+      const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
       const res = await axios.get(proxyUrl);
-      const data = JSON.parse(res.data.contents);
+      const data = res.data;
       setPeopleInSpace({ count: data.number, names: data.people.map(p => p.name) });
     } catch (e) {
       console.error('Error fetching people data:', e);
@@ -157,36 +169,41 @@ const ISSTracker = ({ onDataUpdate }) => {
   };
 
   return (
-    <div className="grid-iss">
+    <div className="grid-layout">
       <div className="flex flex-col gap-6">
         <div className="card">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-bold flex items-center gap-2 text-slate-800 dark:text-white">
-              <Globe className="text-pink-500" size={20} /> ISS Live Tracking
-            </h2>
-            <button className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 rounded-lg text-[10px] font-bold" onClick={fetchISSData}>Refresh Now</button>
+          <div className="ncr-top mb-6">
+            <h2 className="text-lg font-bold tracking-tight" style={{ fontFamily: 'var(--font-display)' }}>ISS Live Tracking</h2>
+            <div className="flex gap-2">
+              <button className="btn-pill" onClick={fetchISSData}>Refresh Now</button>
+              <button className="btn-pill">Auto-Refresh: ON</button>
+            </div>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-            <div className="p-3 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-100 dark:border-slate-800">
-              <p className="text-[9px] font-bold text-slate-400 uppercase mb-1">Coordinates</p>
-              <p className="text-sm font-black">{position.lat.toFixed(2)}, {position.lng.toFixed(2)}</p>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
+            <div className="stat-box">
+              <p className="text-[10px] font-bold opacity-50 uppercase">Latitude / Longitude</p>
+              <p className="text-sm font-black">{position.lat.toFixed(3)}, {position.lng.toFixed(3)}</p>
             </div>
-            <div className="p-3 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-100 dark:border-slate-800">
-              <p className="text-[9px] font-bold text-slate-400 uppercase mb-1">Speed</p>
+            <div className="stat-box">
+              <p className="text-[10px] font-bold opacity-50 uppercase">Speed</p>
               <p className="text-sm font-black">{speed} km/h</p>
             </div>
-            <div className="p-3 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-100 dark:border-slate-800 col-span-2">
-              <p className="text-[9px] font-bold text-slate-400 uppercase mb-1">Location</p>
-              <p className="text-xs font-bold truncate">{nearestPlace}</p>
+            <div className="stat-box">
+              <p className="text-[10px] font-bold opacity-50 uppercase">Nearest Place</p>
+              <p className="text-sm font-black truncate">{nearestPlace.split(',')[0]}</p>
+            </div>
+            <div className="stat-box">
+              <p className="text-[10px] font-bold opacity-50 uppercase">Tracked Positions</p>
+              <p className="text-sm font-black">{history.length}</p>
             </div>
           </div>
 
-          <div className="h-[380px] rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 relative bg-slate-100">
-            <MapContainer center={[20, 0]} zoom={2} style={{ height: '100%', width: '100%' }}>
+          <div className="h-[400px] rounded-2xl overflow-hidden relative border border-current/5">
+            <MapContainer center={[20, 0]} zoom={2} style={{ height: '100%', width: '100%' }} className="map-light">
               <ChangeView center={[position.lat, position.lng]} />
               <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-              <Polyline positions={history} color="#ff4b5c" weight={2} opacity={0.4} />
+              <Polyline positions={history} color="var(--accent)" weight={2} opacity={0.6} />
               <Marker position={[position.lat, position.lng]} icon={issIcon} />
             </MapContainer>
           </div>
@@ -195,30 +212,55 @@ const ISSTracker = ({ onDataUpdate }) => {
 
       <div className="flex flex-col gap-6">
         <div className="card">
-          <h2 className="text-xl font-bold mb-6 flex items-center gap-2 text-slate-800 dark:text-white">
-            <Activity className="text-pink-500" /> ISS Speed Trend
-          </h2>
-          <div className="h-[250px]">
-            <Line data={chartData} options={{ 
+          <h2 className="text-lg font-bold tracking-tight mb-8" style={{ fontFamily: 'var(--font-display)' }}>ISS Speed Trend</h2>
+          <div className="h-[300px]">
+            <Line data={{
+              ...chartData,
+              datasets: [{
+                ...chartData.datasets[0],
+                borderColor: '#e5634d',
+                backgroundColor: 'rgba(229, 99, 77, 0.05)',
+                borderWidth: 2,
+                pointRadius: 0,
+              }]
+            }} options={{ 
               responsive: true, 
               maintainAspectRatio: false,
-              plugins: { legend: { display: false } },
+              plugins: { 
+                legend: { 
+                  display: true,
+                  position: 'top',
+                  align: 'end',
+                  labels: { boxWidth: 10, font: { size: 10, weight: 'bold' } }
+                } 
+              },
               scales: { 
-                y: { grid: { color: 'rgba(148, 163, 184, 0.05)' }, ticks: { color: '#94a3b8', font: { size: 10 } } },
-                x: { display: false }
+                y: { 
+                  grid: { color: 'rgba(0, 0, 0, 0.03)' }, 
+                  ticks: { color: 'var(--muted)', font: { size: 9, weight: 'bold' } },
+                  border: { display: false }
+                },
+                x: { 
+                  grid: { display: false },
+                  ticks: { color: 'var(--muted)', font: { size: 9, weight: 'bold' }, maxRotation: 45, minRotation: 45 }
+                }
               }
             }} />
           </div>
         </div>
 
         <div className="card">
-          <h2 className="text-xl font-bold mb-4 flex items-center gap-2 text-slate-800 dark:text-white">
-            <Users className="text-blue-500" /> People in Space
+          <h2 className="text-lg font-bold tracking-tight mb-4" style={{ fontFamily: 'var(--font-display)' }}>
+            People in Space
           </h2>
-          <p className="text-3xl font-black mb-4 text-slate-800 dark:text-white">{peopleInSpace.count}</p>
+          <div className="flex items-end gap-2 mb-4">
+            <p className="text-4xl font-black leading-none">{peopleInSpace.count}</p>
+            <span className="text-xs font-bold opacity-40 mb-1">Astronauts currently orbiting</span>
+          </div>
           <div className="flex flex-wrap gap-2 max-h-[120px] overflow-y-auto pr-2 custom-scrollbar">
             {peopleInSpace.names.map((name, i) => (
-              <span key={i} className="text-[9px] font-bold px-2.5 py-1.5 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 rounded-lg border border-slate-200 dark:border-slate-700">
+              <span key={i} className="text-[10px] font-bold px-3 py-2 rounded-xl border shadow-sm"
+                style={{ backgroundColor: 'var(--panel-elev)', borderColor: 'var(--border)', color: 'var(--muted)' }}>
                 {name}
               </span>
             ))}
