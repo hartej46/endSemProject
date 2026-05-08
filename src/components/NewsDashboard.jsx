@@ -101,7 +101,7 @@ const NewsDashboard = ({ onDataUpdate }) => {
 
   return (
     <div className="news-section">
-      <div className="card">
+      <div className="card" style={{ gridColumn: 'span 2' }}>
         {/* Header Section */}
         <div className="flex justify-between items-center mb-5">
           <h2 className="text-lg font-bold text-slate-800 dark:text-white">Breaking News</h2>
@@ -191,34 +191,6 @@ const NewsDashboard = ({ onDataUpdate }) => {
             ))}
           </div>
         )}
-      </div>
-
-      <div className="card h-fit sticky top-8">
-        <h2 className="text-xl font-bold mb-8 flex items-center gap-2">
-          <TrendingUp size={22} className="text-pink-500" /> 
-          <span>Sources</span>
-        </h2>
-        <div style={{ height: '350px' }} className="flex justify-center">
-          <Pie 
-            data={getSourceDistribution()} 
-            options={{ 
-              responsive: true, 
-              maintainAspectRatio: false,
-              plugins: {
-                legend: { 
-                  position: 'bottom', 
-                  labels: { 
-                    boxWidth: 10, 
-                    usePointStyle: true,
-                    padding: 20, 
-                    color: '#94a3b8',
-                    font: { size: 11, weight: '600' }
-                  } 
-                }
-              }
-            }} 
-          />
-        </div>
       </div>
     </div>
   );

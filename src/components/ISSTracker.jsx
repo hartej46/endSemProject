@@ -79,8 +79,12 @@ const ISSTracker = ({ onDataUpdate }) => {
 
   const fetchISSData = async () => {
     try {
-      const response = await axios.get('https://api.wheretheiss.at/v1/satellites/25544');
-      const { latitude, longitude } = response.data;
+      // Wrapping HTTP Open-Notify in an HTTPS Proxy for Vercel support
+      const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent('http://api.open-notify.org/iss-now.json')}`;
+      const response = await axios.get(proxyUrl);
+      const data = JSON.parse(response.data.contents);
+      
+      const { latitude, longitude } = data.iss_position;
       const newPos = { lat: parseFloat(latitude), lng: parseFloat(longitude) };
 
       setPosition((prev) => {
@@ -123,9 +127,12 @@ const ISSTracker = ({ onDataUpdate }) => {
 
   const fetchPeopleData = async () => {
     try {
-      const res = await axios.get('https://api.allorigins.win/raw?url=http://api.open-notify.org/astros.json');
-      setPeopleInSpace({ count: res.data.number, names: res.data.people.map(p => p.name) });
+      const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent('http://api.open-notify.org/astros.json')}`;
+      const res = await axios.get(proxyUrl);
+      const data = JSON.parse(res.data.contents);
+      setPeopleInSpace({ count: data.number, names: data.people.map(p => p.name) });
     } catch (e) {
+      console.error('Error fetching people data:', e);
       setPeopleInSpace({ count: 7, names: ['Expedition 71'] });
     }
   };
@@ -133,7 +140,7 @@ const ISSTracker = ({ onDataUpdate }) => {
   useEffect(() => {
     fetchISSData();
     fetchPeopleData();
-    const interval = setInterval(fetchISSData, 10000); // Polling every 10 seconds for stability
+    const interval = setInterval(fetchISSData, 15000); // Increased to 15s to prevent rate limits
     return () => clearInterval(interval);
   }, []);
 
