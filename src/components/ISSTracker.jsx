@@ -79,30 +79,20 @@ const ISSTracker = ({ onDataUpdate }) => {
 
   const fetchISSData = async () => {
     try {
-      // Using a more reliable CORS proxy for Vercel (HTTPS) support
-      const targetUrl = 'http://api.open-notify.org/iss-now.json';
-      const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
-      const response = await axios.get(proxyUrl);
+      // Using WhereTheISS API - Native HTTPS, no proxy needed for Vercel
+      const response = await axios.get('https://api.wheretheiss.at/v1/satellites/25544');
       const data = response.data;
       
-      if (!data || !data.iss_position) {
-        console.error('Invalid ISS data format:', data);
-        return;
-      }
-
-      const { latitude, longitude } = data.iss_position;
+      const { latitude, longitude, velocity } = data;
       const newPos = { lat: parseFloat(latitude), lng: parseFloat(longitude) };
 
       setPosition((prev) => {
-        if (prev && prev.lat !== 0) {
-          const currentSpeed = calculateSpeed(prev, newPos, 15); // Match the 15s interval
-          setSpeed(currentSpeed);
-          setSpeedHistory((prevH) => [...prevH.slice(-29), { time: new Date().toLocaleTimeString(), speed: currentSpeed }]);
-        } else {
-          // Default initial speed for ISS is approx 27600 km/h
-          setSpeed(27600);
-          setSpeedHistory([{ time: new Date().toLocaleTimeString(), speed: 27600 }]);
-        }
+        const currentSpeed = parseFloat(velocity).toFixed(2);
+        setSpeed(currentSpeed);
+        setSpeedHistory((prevH) => [
+          ...prevH.slice(-29), 
+          { time: new Date().toLocaleTimeString(), speed: currentSpeed }
+        ]);
         return newPos;
       });
 
@@ -113,7 +103,7 @@ const ISSTracker = ({ onDataUpdate }) => {
       if (onDataUpdate) {
         onDataUpdate({
           ...newPos,
-          speed: speed || 27600,
+          speed: velocity,
           nearest: nearestPlace,
           peopleCount: peopleInSpace.count,
           peopleNames: peopleInSpace.names
@@ -121,7 +111,8 @@ const ISSTracker = ({ onDataUpdate }) => {
       }
     } catch (error) {
       console.error('Error fetching ISS data:', error);
-      toast.error('ISS connection issues. Retrying...');
+      // Fallback if WhereTheISS also fails (unlikely)
+      toast.error('Mission Control connection issue. Reconnecting...');
     }
   };
 
@@ -138,14 +129,19 @@ const ISSTracker = ({ onDataUpdate }) => {
 
   const fetchPeopleData = async () => {
     try {
+      // Using AllOrigins for People data as fallback
       const targetUrl = 'http://api.open-notify.org/astros.json';
-      const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
+      const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}&timestamp=${Date.now()}`;
       const res = await axios.get(proxyUrl);
-      const data = res.data;
+      const data = JSON.parse(res.data.contents);
       setPeopleInSpace({ count: data.number, names: data.people.map(p => p.name) });
     } catch (e) {
       console.error('Error fetching people data:', e);
-      setPeopleInSpace({ count: 7, names: ['Expedition 71'] });
+      // Hardcoded fallback for known mission
+      setPeopleInSpace({ 
+        count: 7, 
+        names: ['Oleg Kononenko', 'Nikolai Chub', 'Tracy Dyson', 'Matthew Dominick', 'Michael Barratt', 'Jeanette Epps', 'Alexander Grebenkin'] 
+      });
     }
   };
 
