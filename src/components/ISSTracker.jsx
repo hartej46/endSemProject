@@ -43,7 +43,7 @@ L.Marker.prototype.options.icon = DefaultIcon;
 
 // ISS Icon
 const issIcon = L.icon({
-  iconUrl: '/public/favicon.svg', // Fallback to public icon
+  iconUrl: '/favicon.svg', // Production path
   iconSize: [40, 40],
   iconAnchor: [20, 20],
 });

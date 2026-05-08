@@ -29,6 +29,11 @@ const NewsDashboard = ({ onDataUpdate }) => {
   }, [articles]);
 
   const fetchNews = async (force = false) => {
+    if (!NEWS_API_KEY) {
+      console.warn('News API key is missing.');
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setError(null);
     const cached = localStorage.getItem(CACHE_KEY);
