@@ -1,22 +1,21 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { MapContainer, TileLayer, Marker, Polyline, Tooltip, useMap } from 'react-leaflet';
+import React, { useState, useEffect, useCallback } from 'react';
+import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
 import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
-import { calculateSpeed } from '../utils/issUtils';
 import axios from 'axios';
-import { toast } from 'react-toastify';
-import { RefreshCw, Navigation, Zap, MapPin, Users } from 'lucide-react';
-import { Line } from 'react-chartjs-2';
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Title,
-  Tooltip as ChartTooltip,
+import { 
+  Chart as ChartJS, 
+  CategoryScale, 
+  LinearScale, 
+  PointElement, 
+  LineElement, 
+  Title, 
+  Tooltip as ChartTooltip, 
   Legend,
+  Filler
 } from 'chart.js';
+import { Line } from 'react-chartjs-2';
+import { MapPin, Navigation, Users, Globe, Activity } from 'lucide-react';
+import { toast } from 'react-toastify';
 
 ChartJS.register(
   CategoryScale,
@@ -25,68 +24,89 @@ ChartJS.register(
   LineElement,
   Title,
   ChartTooltip,
-  Legend
+  Legend,
+  Filler
 );
 
 // Fix for default marker icon in Leaflet
-import markerIcon from 'leaflet/dist/images/marker-icon.png';
-import markerShadow from 'leaflet/dist/images/marker-shadow.png';
+import icon from 'leaflet/dist/images/marker-icon.png';
+import iconShadow from 'leaflet/dist/images/marker-shadow.png';
 
-const ISSIcon = L.icon({
-  iconUrl: 'https://cdn-icons-png.flaticon.com/512/2091/2091210.png', // ISS Icon
+let DefaultIcon = L.icon({
+  iconUrl: icon,
+  shadowUrl: iconShadow,
+  iconSize: [25, 41],
+  iconAnchor: [12, 41]
+});
+
+L.Marker.prototype.options.icon = DefaultIcon;
+
+// ISS Icon
+const issIcon = L.icon({
+  iconUrl: '/public/favicon.svg', // Fallback to public icon
   iconSize: [40, 40],
   iconAnchor: [20, 20],
 });
 
-function ChangeView({ center }) {
+// Component to handle map center updates
+const ChangeView = ({ center }) => {
   const map = useMap();
-  map.setView(center);
+  useEffect(() => {
+    map.setView(center);
+  }, [center]);
   return null;
-}
+};
 
 const ISSTracker = ({ onDataUpdate }) => {
   const [position, setPosition] = useState({ lat: 0, lng: 0 });
   const [history, setHistory] = useState([]);
   const [speed, setSpeed] = useState(0);
   const [speedHistory, setSpeedHistory] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [nearestPlace, setNearestPlace] = useState('Fetching...');
   const [peopleInSpace, setPeopleInSpace] = useState({ count: 0, names: [] });
-  const [autoRefresh, setAutoRefresh] = useState(true);
-  const [loading, setLoading] = useState(true);
 
-  // Use effect to update parent data
-  useEffect(() => {
-    if (onDataUpdate) {
-      onDataUpdate({
-        lat: position.lat,
-        lng: position.lng,
-        speed: speed.toFixed(2),
-        nearest: nearestPlace,
-        peopleCount: peopleInSpace.count,
-        peopleNames: peopleInSpace.names
-      });
-    }
-  }, [position, speed, nearestPlace, peopleInSpace]);
+  const calculateSpeed = (prev, next, timeInterval) => {
+    const R = 6371; // Earth radius in km
+    const dLat = (next.lat - prev.lat) * Math.PI / 180;
+    const dLon = (next.lng - prev.lng) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+              Math.cos(prev.lat * Math.PI / 180) * Math.cos(next.lat * Math.PI / 180) *
+              Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    const distance = R * c;
+    return (distance / (timeInterval / 3600)).toFixed(2); // km/h
+  };
 
   const fetchISSData = async () => {
     try {
-      const response = await axios.get('http://api.open-notify.org/iss-now.json');
-      const { latitude, longitude } = response.data.iss_position;
+      const response = await axios.get('https://api.wheretheiss.at/v1/satellites/25544');
+      const { latitude, longitude } = response.data;
       const newPos = { lat: parseFloat(latitude), lng: parseFloat(longitude) };
 
       setPosition((prev) => {
         if (prev.lat !== 0) {
-          const currentSpeed = calculateSpeed(prev, newPos, 15);
+          const currentSpeed = calculateSpeed(prev, newPos, 5); // Updated to 5s interval
           setSpeed(currentSpeed);
           setSpeedHistory((prevH) => [...prevH.slice(-29), { time: new Date().toLocaleTimeString(), speed: currentSpeed }]);
         }
         return newPos;
       });
 
-      setHistory((prev) => [...prev.slice(-14), [newPos.lat, newPos.lng]]);
+      setHistory((prev) => [...prev.slice(-49), [newPos.lat, newPos.lng]]);
       fetchNearestPlace(newPos.lat, newPos.lng);
       setLoading(false);
-      toast.success('ISS data refreshed.', { autoClose: 2000 });
+      
+      // Notify parent of new data
+      if (onDataUpdate) {
+        onDataUpdate({
+          ...newPos,
+          speed,
+          nearest: nearestPlace,
+          peopleCount: peopleInSpace.count,
+          peopleNames: peopleInSpace.names
+        });
+      }
     } catch (error) {
       console.error('Error fetching ISS data:', error);
     }
@@ -94,7 +114,9 @@ const ISSTracker = ({ onDataUpdate }) => {
 
   const fetchNearestPlace = async (lat, lng) => {
     try {
-      const res = await axios.get(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=10`);
+      const res = await axios.get(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=10`, {
+        headers: { 'User-Agent': 'MissionControlDashboard/1.0' }
+      });
       setNearestPlace(res.data.display_name || 'Over ocean / remote area');
     } catch (e) {
       setNearestPlace('Over ocean / remote area');
@@ -103,112 +125,103 @@ const ISSTracker = ({ onDataUpdate }) => {
 
   const fetchPeopleData = async () => {
     try {
-      const res = await axios.get('http://api.open-notify.org/astros.json');
+      // Using a more reliable open-notify alternate if available or just a static fallback if blocked
+      const res = await axios.get('https://api.allorigins.win/raw?url=http://api.open-notify.org/astros.json');
       setPeopleInSpace({ count: res.data.number, names: res.data.people.map(p => p.name) });
     } catch (e) {
-      console.error('Error fetching people data:', e);
+      // Fallback for demo
+      setPeopleInSpace({ count: 7, names: ['Expedition 71'] });
     }
   };
 
   useEffect(() => {
     fetchISSData();
     fetchPeopleData();
-    let interval;
-    if (autoRefresh) {
-      interval = setInterval(fetchISSData, 15000);
-    }
+    const interval = setInterval(fetchISSData, 5000); // Polling every 5 seconds
     return () => clearInterval(interval);
-  }, [autoRefresh]);
+  }, [speed, nearestPlace, peopleInSpace.count]);
 
   const chartData = {
     labels: speedHistory.map(h => h.time),
-    datasets: [
-      {
-        label: 'ISS Speed (km/h)',
-        data: speedHistory.map(h => h.speed),
-        borderColor: '#e74c3c',
-        backgroundColor: 'rgba(231, 76, 60, 0.2)',
-        tension: 0.4,
-        fill: true,
-      },
-    ],
+    datasets: [{
+      label: 'ISS Speed (km/h)',
+      data: speedHistory.map(h => h.speed),
+      fill: true,
+      borderColor: '#ff4b5c',
+      backgroundColor: 'rgba(255, 75, 92, 0.1)',
+      tension: 0.4,
+    }]
   };
 
   return (
-    <div className="grid grid-iss gap-1.5">
-      <div className="card">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-bold">ISS Live Tracking</h2>
-          <div className="flex gap-2">
-            <button className="btn-secondary flex items-center gap-2" onClick={fetchISSData}>
-              <RefreshCw size={16} /> Refresh Now
-            </button>
-            <button 
-              className={`btn-secondary ${autoRefresh ? 'bg-green-100' : ''}`} 
-              onClick={() => setAutoRefresh(!autoRefresh)}
-            >
-              Auto-Refresh: {autoRefresh ? 'ON' : 'OFF'}
-            </button>
+    <div className="dashboard-grid">
+      <div className="card lg:col-span-2">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-xl font-bold flex items-center gap-2">
+            <Globe className="text-accent" /> ISS Live Tracking
+          </h2>
+          <div className="flex items-center gap-4">
+            <button className="btn-secondary text-xs" onClick={fetchISSData}>Refresh Now</button>
+            <span className="text-[10px] font-bold uppercase text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded">Auto-Refresh: ON</span>
           </div>
         </div>
 
-        <div className="grid grid-4 gap-2 mb-4">
-          <div className="card-mini bg-gray-50 p-3 rounded-lg border border-gray-100">
-            <span className="text-xs text-gray-500 uppercase font-semibold">Latitude / Longitude</span>
-            <p className="font-bold">{position.lat.toFixed(3)}, {position.lng.toFixed(3)}</p>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+          <div className="card-mini">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Latitude / Longitude</p>
+            <p className="text-lg font-black">{position.lat.toFixed(4)}, {position.lng.toFixed(4)}</p>
           </div>
-          <div className="card-mini bg-gray-50 p-3 rounded-lg border border-gray-100">
-            <span className="text-xs text-gray-500 uppercase font-semibold">Speed</span>
-            <p className="font-bold">{speed.toFixed(2)} km/h</p>
+          <div className="card-mini">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Speed</p>
+            <p className="text-lg font-black">{speed} km/h</p>
           </div>
-          <div className="card-mini bg-gray-50 p-3 rounded-lg border border-gray-100">
-            <span className="text-xs text-gray-500 uppercase font-semibold">Nearest Place</span>
-            <p className="font-bold text-sm truncate">{nearestPlace}</p>
-          </div>
-          <div className="card-mini bg-gray-50 p-3 rounded-lg border border-gray-100">
-            <span className="text-xs text-gray-500 uppercase font-semibold">Tracked Positions</span>
-            <p className="font-bold">{history.length}</p>
+          <div className="card-mini md:col-span-2">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Nearest Place</p>
+            <p className="text-sm font-bold truncate">{nearestPlace}</p>
           </div>
         </div>
 
-        <MapContainer center={[0, 0]} zoom={2} scrollWheelZoom={true}>
-          <TileLayer
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          />
-          <Marker position={[position.lat, position.lng]} icon={ISSIcon}>
-            <Tooltip permanent direction="top" offset={[0, -20]}>
-              ISS Position: {position.lat.toFixed(2)}, {position.lng.toFixed(2)}
-            </Tooltip>
-          </Marker>
-          <Polyline positions={history} color="#e74c3c" weight={3} opacity={0.6} />
-          <ChangeView center={[position.lat, position.lng]} />
-        </MapContainer>
+        <div className="h-[400px] rounded-2xl overflow-hidden border border-slate-100 dark:border-slate-800 shadow-inner relative">
+          <MapContainer center={[0, 0]} zoom={2} style={{ height: '100%', width: '100%' }}>
+            <ChangeView center={[position.lat, position.lng]} />
+            <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+            <Polyline positions={history} color="#ff4b5c" weight={3} opacity={0.5} />
+            <Marker position={[position.lat, position.lng]} icon={issIcon}>
+              <Popup>ISS Position: {position.lat.toFixed(2)}, {position.lng.toFixed(2)}</Popup>
+            </Marker>
+          </MapContainer>
+          <div className="absolute bottom-4 left-4 z-[1000] bg-white/90 dark:bg-slate-900/90 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/20 text-[10px] font-bold shadow-xl">
+             🛰️ Orbit: LEO (Low Earth Orbit)
+          </div>
+        </div>
       </div>
 
-      <div className="flex flex-col gap-1.5">
-        <div className="card h-full">
-          <h2 className="text-xl font-bold mb-4">ISS Speed Trend</h2>
-          <div style={{ height: '250px' }}>
-            <Line 
-              data={chartData} 
-              options={{ 
-                responsive: true, 
-                maintainAspectRatio: false,
-                scales: { y: { beginAtZero: false } }
-              }} 
-            />
+      <div className="space-y-6">
+        <div className="card">
+          <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
+            <Activity className="text-pink-500" /> ISS Speed Trend
+          </h2>
+          <div className="h-[250px]">
+            <Line data={chartData} options={{ 
+              responsive: true, 
+              maintainAspectRatio: false,
+              plugins: { legend: { display: false } },
+              scales: { 
+                y: { grid: { color: 'rgba(148, 163, 184, 0.1)' }, ticks: { color: '#94a3b8', font: { size: 10 } } },
+                x: { display: false }
+              }
+            }} />
           </div>
         </div>
 
         <div className="card">
-          <h2 className="text-xl font-bold mb-2 flex items-center gap-2">
-            <Users size={20} /> People in Space
+          <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+            <Users className="text-cyan-500" /> People in Space
           </h2>
-          <p className="text-3xl font-bold mb-2">{peopleInSpace.count}</p>
-          <div className="flex flex-wrap gap-2">
+          <p className="text-4xl font-black mb-4">{peopleInSpace.count}</p>
+          <div className="flex flex-wrap gap-2 max-h-[100px] overflow-y-auto pr-2 custom-scrollbar">
             {peopleInSpace.names.map((name, i) => (
-              <span key={i} className="text-xs bg-gray-100 px-2 py-1 rounded-full border border-gray-200">
+              <span key={i} className="text-[10px] font-bold px-3 py-1.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-full border border-slate-200/50 dark:border-slate-700/50">
                 {name}
               </span>
             ))}

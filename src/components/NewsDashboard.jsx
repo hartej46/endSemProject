@@ -97,11 +97,11 @@ const NewsDashboard = ({ onDataUpdate }) => {
   return (
     <div className="news-section">
       <div className="card">
-        {/* Header with Title and Refresh */}
+        {/* Header Section */}
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-bold">Breaking News</h2>
+          <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Breaking News</h2>
           <button 
-            className="flex items-center gap-2 px-4 py-1.5 border border-slate-200 dark:border-slate-800 rounded-lg text-sm font-medium hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+            className="px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium shadow-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-all flex items-center gap-2"
             onClick={() => fetchNews(true)}
           >
             <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
@@ -109,78 +109,79 @@ const NewsDashboard = ({ onDataUpdate }) => {
           </button>
         </div>
 
-        {/* Search and Sort Pill Row */}
-        <div className="flex gap-2 mb-8">
+        {/* Search and Sort Controls */}
+        <div className="flex flex-col md:flex-row gap-3 mb-8">
           <div className="flex-1 relative">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
             <input 
               type="text" 
               placeholder="Search title, source, author..." 
-              className="w-full px-5 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-full outline-none text-sm focus:border-pink-500/50 transition-all"
+              className="w-full pl-12 pr-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-sm focus:ring-2 focus:ring-pink-500/20 transition-all"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          <div className="flex gap-2">
-            <select 
-              className="px-5 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-full outline-none text-sm cursor-pointer hover:border-pink-500/50 appearance-none min-w-[130px]"
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-            >
-              <option value="date">Sort by Date</option>
-              <option value="title">Sort by Title</option>
-            </select>
-            <select 
-              className="px-5 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-full outline-none text-sm cursor-pointer hover:border-pink-500/50 appearance-none uppercase font-bold text-cyan-400"
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-            >
-              <option value="science">Science</option>
-              <option value="technology">Tech</option>
-              <option value="world">World</option>
-              <option value="top">Top</option>
-            </select>
-          </div>
+          <select 
+            className="px-6 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-sm cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 min-w-[160px]"
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+          >
+            <option value="date">Sort by Date</option>
+            <option value="title">Sort by Title</option>
+          </select>
         </div>
 
+        {/* News Feed */}
         {loading ? (
-          <div className="space-y-2">
-            {[1, 2, 3, 4, 5].map(i => <div key={i} className="h-16 bg-slate-100/50 dark:bg-slate-800/50 animate-pulse rounded-xl" />)}
+          <div className="space-y-4">
+            {[1, 2, 3].map(i => <div key={i} className="h-32 bg-slate-100 dark:bg-slate-800 animate-pulse rounded-2xl" />)}
           </div>
         ) : (
-          <div className="space-y-2 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
+          <div className="space-y-4 max-h-[700px] overflow-y-auto pr-2 custom-scrollbar">
             {getProcessedArticles().map((article, idx) => (
               <a 
                 key={idx} 
                 href={article.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-4 p-3 bg-slate-50/50 dark:bg-slate-900/30 border border-slate-100/50 dark:border-slate-800/50 rounded-2xl hover:border-pink-500/30 hover:bg-slate-100/50 dark:hover:bg-slate-800/50 transition-all group block shadow-sm"
+                className={`relative flex flex-col md:flex-row gap-6 p-5 bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800 rounded-2xl hover:border-pink-500/50 transition-all group block shadow-sm ${idx === 0 ? 'border-pink-500/60 ring-1 ring-pink-500/10' : ''}`}
               >
-                <div className="w-9 h-9 rounded-full bg-pink-500 flex items-center justify-center text-white text-[11px] font-bold shrink-0 shadow-lg shadow-pink-500/20">
+                {/* ID Badge */}
+                <div className="absolute top-2 left-2 w-7 h-7 rounded-full bg-pink-500 text-white text-[11px] font-bold flex items-center justify-center z-10 shadow-lg">
                   {idx + 1}
                 </div>
 
+                {/* Left: Image */}
                 {article.urlToImage && (
-                  <img 
-                    src={article.urlToImage} 
-                    alt="" 
-                    className="w-14 h-14 object-cover rounded-xl shrink-0 border border-white/5"
-                    onError={(e) => e.target.style.display = 'none'}
-                  />
+                  <div className="md:w-36 md:h-28 shrink-0">
+                    <img 
+                      src={article.urlToImage} 
+                      alt="" 
+                      className="w-full h-full object-cover rounded-xl shadow-inner border border-slate-100 dark:border-slate-800"
+                      onError={(e) => e.target.style.display = 'none'}
+                    />
+                  </div>
                 )}
 
+                {/* Middle: Content */}
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-0.5">
-                    <span className="text-[10px] font-bold text-cyan-400 uppercase tracking-wider truncate">{article.source.name}</span>
-                    <span className="text-[10px] text-slate-500 font-medium">
+                  <div className="flex items-center gap-3 mb-1.5">
+                    <span className="text-[11px] font-bold text-cyan-600 dark:text-cyan-400 uppercase tracking-wider">{article.source.name}</span>
+                    <span className="text-[10px] text-slate-400">
                       {article.publishedAt ? new Date(article.publishedAt).toLocaleDateString() : ''}
                     </span>
                   </div>
-                  <h3 className="font-bold text-[14px] leading-tight text-slate-800 dark:text-slate-100 group-hover:text-pink-500 transition-colors line-clamp-1">{article.title}</h3>
+                  <h3 className="font-bold text-lg leading-tight mb-2 text-slate-800 dark:text-slate-100 group-hover:text-pink-500 transition-colors">
+                    {article.title}
+                  </h3>
+                  <p className="text-sm text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed">
+                    {article.description}
+                  </p>
                 </div>
 
-                <div className="w-6 h-6 flex items-center justify-center text-pink-500 opacity-30 group-hover:opacity-100 transition-all group-hover:translate-x-1">
-                  <div className="w-0 h-0 border-l-[5px] border-l-transparent border-r-[5px] border-r-transparent border-t-[6px] border-t-current" />
+                {/* Right: Icon */}
+                <div className="absolute top-5 right-5 text-pink-500/40 group-hover:text-pink-500 transition-all">
+                  <div className="w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[8px] border-t-current" />
                 </div>
               </a>
             ))}
