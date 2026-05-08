@@ -28,32 +28,31 @@ ChartJS.register(
   Filler
 );
 
-// Fix for default marker icon in Leaflet
-import icon from 'leaflet/dist/images/marker-icon.png';
-import iconShadow from 'leaflet/dist/images/marker-shadow.png';
-
-let DefaultIcon = L.icon({
-  iconUrl: icon,
-  shadowUrl: iconShadow,
+// Fix for default marker icon in Leaflet using CDN links
+const DefaultIcon = L.icon({
+  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
   iconSize: [25, 41],
   iconAnchor: [12, 41]
 });
 
 L.Marker.prototype.options.icon = DefaultIcon;
 
-// ISS Icon
+// ISS Icon - Satellite
 const issIcon = L.icon({
-  iconUrl: '/favicon.svg', // Production path
-  iconSize: [40, 40],
-  iconAnchor: [20, 20],
+  iconUrl: 'https://cdn-icons-png.flaticon.com/512/1043/1043445.png', 
+  iconSize: [35, 35],
+  iconAnchor: [17, 17],
 });
 
 // Component to handle map center updates
 const ChangeView = ({ center }) => {
   const map = useMap();
   useEffect(() => {
-    map.setView(center);
-  }, [center]);
+    if (center[0] !== 0 || center[1] !== 0) {
+      map.setView(center, map.getZoom());
+    }
+  }, [center, map]);
   return null;
 };
 
@@ -86,18 +85,17 @@ const ISSTracker = ({ onDataUpdate }) => {
 
       setPosition((prev) => {
         if (prev.lat !== 0) {
-          const currentSpeed = calculateSpeed(prev, newPos, 5); // Updated to 5s interval
+          const currentSpeed = calculateSpeed(prev, newPos, 10);
           setSpeed(currentSpeed);
           setSpeedHistory((prevH) => [...prevH.slice(-29), { time: new Date().toLocaleTimeString(), speed: currentSpeed }]);
         }
         return newPos;
       });
 
-      setHistory((prev) => [...prev.slice(-49), [newPos.lat, newPos.lng]]);
+      setHistory((prev) => [...prev.slice(-99), [newPos.lat, newPos.lng]]);
       fetchNearestPlace(newPos.lat, newPos.lng);
       setLoading(false);
       
-      // Notify parent of new data
       if (onDataUpdate) {
         onDataUpdate({
           ...newPos,
@@ -125,11 +123,9 @@ const ISSTracker = ({ onDataUpdate }) => {
 
   const fetchPeopleData = async () => {
     try {
-      // Using a more reliable open-notify alternate if available or just a static fallback if blocked
       const res = await axios.get('https://api.allorigins.win/raw?url=http://api.open-notify.org/astros.json');
       setPeopleInSpace({ count: res.data.number, names: res.data.people.map(p => p.name) });
     } catch (e) {
-      // Fallback for demo
       setPeopleInSpace({ count: 7, names: ['Expedition 71'] });
     }
   };
@@ -137,9 +133,9 @@ const ISSTracker = ({ onDataUpdate }) => {
   useEffect(() => {
     fetchISSData();
     fetchPeopleData();
-    const interval = setInterval(fetchISSData, 5000); // Polling every 5 seconds
+    const interval = setInterval(fetchISSData, 10000); // Polling every 10 seconds for stability
     return () => clearInterval(interval);
-  }, [speed, nearestPlace, peopleInSpace.count]);
+  }, []);
 
   const chartData = {
     labels: speedHistory.map(h => h.time),
@@ -154,51 +150,45 @@ const ISSTracker = ({ onDataUpdate }) => {
   };
 
   return (
-    <div className="dashboard-grid">
-      <div className="card lg:col-span-2">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-bold flex items-center gap-2">
-            <Globe className="text-accent" /> ISS Live Tracking
-          </h2>
-          <div className="flex items-center gap-4">
-            <button className="btn-secondary text-xs" onClick={fetchISSData}>Refresh Now</button>
-            <span className="text-[10px] font-bold uppercase text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded">Auto-Refresh: ON</span>
+    <div className="grid-iss">
+      <div className="flex flex-col gap-6">
+        <div className="card">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-xl font-bold flex items-center gap-2 text-slate-800 dark:text-white">
+              <Globe className="text-pink-500" size={20} /> ISS Live Tracking
+            </h2>
+            <button className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 rounded-lg text-[10px] font-bold" onClick={fetchISSData}>Refresh Now</button>
           </div>
-        </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <div className="card-mini">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Latitude / Longitude</p>
-            <p className="text-lg font-black">{position.lat.toFixed(4)}, {position.lng.toFixed(4)}</p>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+            <div className="p-3 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-100 dark:border-slate-800">
+              <p className="text-[9px] font-bold text-slate-400 uppercase mb-1">Coordinates</p>
+              <p className="text-sm font-black">{position.lat.toFixed(2)}, {position.lng.toFixed(2)}</p>
+            </div>
+            <div className="p-3 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-100 dark:border-slate-800">
+              <p className="text-[9px] font-bold text-slate-400 uppercase mb-1">Speed</p>
+              <p className="text-sm font-black">{speed} km/h</p>
+            </div>
+            <div className="p-3 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-100 dark:border-slate-800 col-span-2">
+              <p className="text-[9px] font-bold text-slate-400 uppercase mb-1">Location</p>
+              <p className="text-xs font-bold truncate">{nearestPlace}</p>
+            </div>
           </div>
-          <div className="card-mini">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Speed</p>
-            <p className="text-lg font-black">{speed} km/h</p>
-          </div>
-          <div className="card-mini md:col-span-2">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Nearest Place</p>
-            <p className="text-sm font-bold truncate">{nearestPlace}</p>
-          </div>
-        </div>
 
-        <div className="h-[400px] rounded-2xl overflow-hidden border border-slate-100 dark:border-slate-800 shadow-inner relative">
-          <MapContainer center={[0, 0]} zoom={2} style={{ height: '100%', width: '100%' }}>
-            <ChangeView center={[position.lat, position.lng]} />
-            <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-            <Polyline positions={history} color="#ff4b5c" weight={3} opacity={0.5} />
-            <Marker position={[position.lat, position.lng]} icon={issIcon}>
-              <Popup>ISS Position: {position.lat.toFixed(2)}, {position.lng.toFixed(2)}</Popup>
-            </Marker>
-          </MapContainer>
-          <div className="absolute bottom-4 left-4 z-[1000] bg-white/90 dark:bg-slate-900/90 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/20 text-[10px] font-bold shadow-xl">
-             🛰️ Orbit: LEO (Low Earth Orbit)
+          <div className="h-[380px] rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 relative bg-slate-100">
+            <MapContainer center={[20, 0]} zoom={2} style={{ height: '100%', width: '100%' }}>
+              <ChangeView center={[position.lat, position.lng]} />
+              <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+              <Polyline positions={history} color="#ff4b5c" weight={2} opacity={0.4} />
+              <Marker position={[position.lat, position.lng]} icon={issIcon} />
+            </MapContainer>
           </div>
         </div>
       </div>
 
-      <div className="space-y-6">
+      <div className="flex flex-col gap-6">
         <div className="card">
-          <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
+          <h2 className="text-xl font-bold mb-6 flex items-center gap-2 text-slate-800 dark:text-white">
             <Activity className="text-pink-500" /> ISS Speed Trend
           </h2>
           <div className="h-[250px]">
@@ -207,7 +197,7 @@ const ISSTracker = ({ onDataUpdate }) => {
               maintainAspectRatio: false,
               plugins: { legend: { display: false } },
               scales: { 
-                y: { grid: { color: 'rgba(148, 163, 184, 0.1)' }, ticks: { color: '#94a3b8', font: { size: 10 } } },
+                y: { grid: { color: 'rgba(148, 163, 184, 0.05)' }, ticks: { color: '#94a3b8', font: { size: 10 } } },
                 x: { display: false }
               }
             }} />
@@ -215,13 +205,13 @@ const ISSTracker = ({ onDataUpdate }) => {
         </div>
 
         <div className="card">
-          <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-            <Users className="text-cyan-500" /> People in Space
+          <h2 className="text-xl font-bold mb-4 flex items-center gap-2 text-slate-800 dark:text-white">
+            <Users className="text-blue-500" /> People in Space
           </h2>
-          <p className="text-4xl font-black mb-4">{peopleInSpace.count}</p>
-          <div className="flex flex-wrap gap-2 max-h-[100px] overflow-y-auto pr-2 custom-scrollbar">
+          <p className="text-3xl font-black mb-4 text-slate-800 dark:text-white">{peopleInSpace.count}</p>
+          <div className="flex flex-wrap gap-2 max-h-[120px] overflow-y-auto pr-2 custom-scrollbar">
             {peopleInSpace.names.map((name, i) => (
-              <span key={i} className="text-[10px] font-bold px-3 py-1.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-full border border-slate-200/50 dark:border-slate-700/50">
+              <span key={i} className="text-[9px] font-bold px-2.5 py-1.5 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 rounded-lg border border-slate-200 dark:border-slate-700">
                 {name}
               </span>
             ))}

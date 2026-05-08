@@ -1,28 +1,24 @@
 @import "tailwindcss";
 
 :root {
-  --bg-color: #fdf6e9;
+  --bg-color: #fcf6ef;
   --card-bg: #ffffff;
-  --text-primary: #1a1a1a;
-  --text-secondary: #666666;
-  --accent: #0ea5e9;
-  --border-color: #e5e7eb;
-  --shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-  --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  --stat-bg: #f9fafb;
-  --stat-border: #e5e7eb;
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --accent: #3b82f6;
+  --pink-accent: #f43f5e;
+  --border-color: #e2e8f0;
+  --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+  --transition: all 0.2s ease;
 }
 
 [data-theme='dark'] {
-  --bg-color: #0b0f19;
-  --card-bg: #111827;
-  --text-primary: #f3f4f6;
-  --text-secondary: #9ca3af;
-  --accent: #22d3ee;
-  --border-color: rgba(34, 211, 238, 0.12);
-  --shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.4);
-  --stat-bg: rgba(34, 211, 238, 0.03);
-  --stat-border: rgba(34, 211, 238, 0.08);
+  --bg-color: #0f172a;
+  --card-bg: #1e293b;
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  --accent: #38bdf8;
+  --border-color: rgba(56, 189, 248, 0.1);
 }
 
 * {
@@ -47,15 +43,16 @@ body {
 
 .card {
   background-color: var(--card-bg);
-  border-radius: 1.25rem;
-  padding: 2rem;
+  border-radius: 1.5rem;
+  padding: 1.5rem;
   box-shadow: var(--shadow);
   border: 1px solid var(--border-color);
   transition: var(--transition);
 }
 
 .card:hover {
-  border-color: rgba(34, 211, 238, 0.2);
+  border-color: var(--pink-accent);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 }
 
 .card-mini {
@@ -74,28 +71,18 @@ body {
 }
 
 @media (min-width: 1024px) {
-  .grid-iss { 
+  .grid-iss, .news-section { 
     display: grid;
     grid-template-columns: 2fr 1fr;
     gap: 1.5rem;
   }
 }
 
-.news-section {
-  margin-top: 2rem;
-  display: grid;
-  gap: 1.5rem;
-}
-
-@media (min-width: 1024px) {
-  .news-section {
-    grid-template-columns: 2fr 1fr;
-  }
-}
-
 @media (max-width: 1023px) {
   .grid-iss, .news-section {
-    grid-template-columns: 1fr;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
   }
 }
 
